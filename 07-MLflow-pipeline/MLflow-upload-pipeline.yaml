@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: ml-models-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.22, pipelines.kubeflow.org/pipeline_compilation_time: '2024-06-27T15:18:36.673851',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "MLflow pipeline process.",
+      "name": "ML Models Pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.22}
+spec:
+  entrypoint: ml-models-pipeline
+  templates:
+  - name: augmentation-component
+    container:
+      args: [--data_path, '{{inputs.parameters.load-data-component-raw_data}}']
+      command: [python, train_model.py]
+      image: harbor.euso.kr/mlflow-test/augment-data:11
+    inputs:
+      parameters:
+      - {name: load-data-component-raw_data}
+    outputs:
+      artifacts:
+      - {name: augmentation-component-aug_data, path: /shotplan_aug_sample.csv}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.22
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+  - name: load-data-component
+    container:
+      args: [--data, ./data/raw_data.json]
+      command: [python, load_data.py]
+      image: harbor.euso.kr/mlflow-test/load-data:1
+    outputs:
+      parameters:
+      - name: load-data-component-raw_data
+        valueFrom: {path: /raw_data.json}
+      artifacts:
+      - {name: load-data-component-raw_data, path: /raw_data.json}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.22
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+  - name: ml-models-pipeline
+    dag:
+      tasks:
+      - name: augmentation-component
+        template: augmentation-component
+        dependencies: [load-data-component]
+        arguments:
+          parameters:
+          - {name: load-data-component-raw_data, value: '{{tasks.load-data-component.outputs.parameters.load-data-component-raw_data}}'}
+      - {name: load-data-component, template: load-data-component}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner
