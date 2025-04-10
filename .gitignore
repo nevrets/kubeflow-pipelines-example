@@ -1,0 +1,13 @@
+# vscode
+.vs
+.vscode
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# data
+*.csv
+
+config.py

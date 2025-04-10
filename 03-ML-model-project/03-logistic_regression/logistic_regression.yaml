@@ -1,0 +1,20 @@
+name: Logistic Regression Classifier
+description: Trains a Logistic Regression Classifier
+
+inputs:
+- {name: json_data, type: LocalPath, description: 'Path where data is stored.'}
+outputs:
+- {name: acc, type: Float, description: 'Accuracy metric'}
+
+implementation:
+  container:
+    image: nevret/nevret-kubeflow-tutorial:logistic_regression_v2
+    command: [
+      python, logistic_regression.py,
+
+      --data,
+      {inputPath: json_data},
+
+      --acc,
+      {outputPath: acc},
+    ]

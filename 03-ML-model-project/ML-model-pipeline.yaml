@@ -1,0 +1,293 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: ml-models-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.22, pipelines.kubeflow.org/pipeline_compilation_time: '2024-06-24T14:16:41.288147',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "Applies Decision Tree,
+      Logistic Regression, SVM, Naive Bayes, XGBoost for classification problem.",
+      "name": "ML Models Pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.22}
+spec:
+  entrypoint: ml-models-pipeline
+  templates:
+  - name: decision-tree-classifier
+    container:
+      args: []
+      command: [python, decision_tree.py, --data, /tmp/inputs/json_data/data, --acc,
+        /tmp/outputs/acc/data]
+      image: nevret/nevret-kubeflow-tutorial:decision_tree_v2
+    inputs:
+      artifacts:
+      - {name: download-data-function-json_data, path: /tmp/inputs/json_data/data}
+    outputs:
+      parameters:
+      - name: decision-tree-classifier-acc
+        valueFrom: {path: /tmp/outputs/acc/data}
+      artifacts:
+      - {name: decision-tree-classifier-acc, path: /tmp/outputs/acc/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.22
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Trains
+          a  decision tree classifier", "implementation": {"container": {"command":
+          ["python", "decision_tree.py", "--data", {"inputPath": "json_data"}, "--acc",
+          {"outputPath": "acc"}], "image": "nevret/nevret-kubeflow-tutorial:decision_tree_v2"}},
+          "inputs": [{"description": "Path where data is stored.", "name": "json_data",
+          "type": "LocalPath"}], "name": "Decision Tree classifier", "outputs": [{"description":
+          "Accuracy metric", "name": "acc", "type": "Float"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "7276deb17ba4afbb799043c26b2e78e65ecc872ecbd5ec03c4dedd70813ca923", "url":
+          "/data/nevret/kubeflow_pipelines/03-ML-model-project/02-decision_tree/decision_tree.yaml"}'}
+  - name: download-data-function
+    container:
+      args: []
+      command: [python, download_data.py, --data, /tmp/outputs/json_data/data]
+      image: nevret/nevret-kubeflow-tutorial:download_data_v1
+    outputs:
+      artifacts:
+      - {name: download-data-function-json_data, path: /tmp/outputs/json_data/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.22
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Download
+          toy data from sklearn datasets", "implementation": {"container": {"command":
+          ["python", "download_data.py", "--data", {"outputPath": "json_data"}], "image":
+          "nevret/nevret-kubeflow-tutorial:download_data_v1"}}, "name": "Download
+          Data Function", "outputs": [{"description": "Path where data will be stored.",
+          "name": "json_data", "type": "LocalPath"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "17dab5727f69771fb20e887ff6ac3aab463d67e7f645a007424086b94a6e50be", "url":
+          "/data/nevret/kubeflow_pipelines/03-ML-model-project/01-download_data/download_data.yaml"}'}
+  - name: logistic-regression-classifier
+    container:
+      args: []
+      command: [python, logistic_regression.py, --data, /tmp/inputs/json_data/data,
+        --acc, /tmp/outputs/acc/data]
+      image: nevret/nevret-kubeflow-tutorial:logistic_regression_v2
+    inputs:
+      artifacts:
+      - {name: download-data-function-json_data, path: /tmp/inputs/json_data/data}
+    outputs:
+      parameters:
+      - name: logistic-regression-classifier-acc
+        valueFrom: {path: /tmp/outputs/acc/data}
+      artifacts:
+      - {name: logistic-regression-classifier-acc, path: /tmp/outputs/acc/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.22
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Trains
+          a Logistic Regression Classifier", "implementation": {"container": {"command":
+          ["python", "logistic_regression.py", "--data", {"inputPath": "json_data"},
+          "--acc", {"outputPath": "acc"}], "image": "nevret/nevret-kubeflow-tutorial:logistic_regression_v2"}},
+          "inputs": [{"description": "Path where data is stored.", "name": "json_data",
+          "type": "LocalPath"}], "name": "Logistic Regression Classifier", "outputs":
+          [{"description": "Accuracy metric", "name": "acc", "type": "Float"}]}',
+        pipelines.kubeflow.org/component_ref: '{"digest": "b5d13745cc998ed42be68c85682d785f32bf3e0f5f1326a66576e59cf6cbc4f5",
+          "url": "/data/nevret/kubeflow_pipelines/03-ML-model-project/03-logistic_regression/logistic_regression.yaml"}'}
+  - name: ml-models-pipeline
+    dag:
+      tasks:
+      - name: decision-tree-classifier
+        template: decision-tree-classifier
+        dependencies: [download-data-function]
+        arguments:
+          artifacts:
+          - {name: download-data-function-json_data, from: '{{tasks.download-data-function.outputs.artifacts.download-data-function-json_data}}'}
+      - {name: download-data-function, template: download-data-function}
+      - name: logistic-regression-classifier
+        template: logistic-regression-classifier
+        dependencies: [download-data-function]
+        arguments:
+          artifacts:
+          - {name: download-data-function-json_data, from: '{{tasks.download-data-function.outputs.artifacts.download-data-function-json_data}}'}
+      - name: naive-bayes-classifier
+        template: naive-bayes-classifier
+        dependencies: [download-data-function]
+        arguments:
+          artifacts:
+          - {name: download-data-function-json_data, from: '{{tasks.download-data-function.outputs.artifacts.download-data-function-json_data}}'}
+      - name: show-results
+        template: show-results
+        dependencies: [decision-tree-classifier, logistic-regression-classifier, naive-bayes-classifier,
+          support-vector-svm-classifier, xgboost-classifier]
+        arguments:
+          parameters:
+          - {name: decision-tree-classifier-acc, value: '{{tasks.decision-tree-classifier.outputs.parameters.decision-tree-classifier-acc}}'}
+          - {name: logistic-regression-classifier-acc, value: '{{tasks.logistic-regression-classifier.outputs.parameters.logistic-regression-classifier-acc}}'}
+          - {name: naive-bayes-classifier-acc, value: '{{tasks.naive-bayes-classifier.outputs.parameters.naive-bayes-classifier-acc}}'}
+          - {name: support-vector-svm-classifier-acc, value: '{{tasks.support-vector-svm-classifier.outputs.parameters.support-vector-svm-classifier-acc}}'}
+          - {name: xgboost-classifier-acc, value: '{{tasks.xgboost-classifier.outputs.parameters.xgboost-classifier-acc}}'}
+      - name: support-vector-svm-classifier
+        template: support-vector-svm-classifier
+        dependencies: [download-data-function]
+        arguments:
+          artifacts:
+          - {name: download-data-function-json_data, from: '{{tasks.download-data-function.outputs.artifacts.download-data-function-json_data}}'}
+      - name: xgboost-classifier
+        template: xgboost-classifier
+        dependencies: [download-data-function]
+        arguments:
+          artifacts:
+          - {name: download-data-function-json_data, from: '{{tasks.download-data-function.outputs.artifacts.download-data-function-json_data}}'}
+  - name: naive-bayes-classifier
+    container:
+      args: []
+      command: [python, naive_bayes.py, --data, /tmp/inputs/json_data/data, --acc,
+        /tmp/outputs/acc/data]
+      image: nevret/nevret-kubeflow-tutorial:naive_bayes_v2
+    inputs:
+      artifacts:
+      - {name: download-data-function-json_data, path: /tmp/inputs/json_data/data}
+    outputs:
+      parameters:
+      - name: naive-bayes-classifier-acc
+        valueFrom: {path: /tmp/outputs/acc/data}
+      artifacts:
+      - {name: naive-bayes-classifier-acc, path: /tmp/outputs/acc/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.22
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Trains
+          a Naive Bayes classifier", "implementation": {"container": {"command": ["python",
+          "naive_bayes.py", "--data", {"inputPath": "json_data"}, "--acc", {"outputPath":
+          "acc"}], "image": "nevret/nevret-kubeflow-tutorial:naive_bayes_v2"}}, "inputs":
+          [{"description": "Path where data is stored.", "name": "json_data", "type":
+          "LocalPath"}], "name": "Naive Bayes classifier", "outputs": [{"description":
+          "Accuracy metric", "name": "acc", "type": "Float"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "622dcaf2e98acedf342cd010ddac4ea1a953d11a2002df204de9ff128275076e", "url":
+          "/data/nevret/kubeflow_pipelines/03-ML-model-project/05-naive_bayes/naive_bayes.yaml"}'}
+  - name: show-results
+    container:
+      args: [--decision-tree, '{{inputs.parameters.decision-tree-classifier-acc}}',
+        --logistic-regression, '{{inputs.parameters.logistic-regression-classifier-acc}}',
+        --svm, '{{inputs.parameters.support-vector-svm-classifier-acc}}', --naive-bayes,
+        '{{inputs.parameters.naive-bayes-classifier-acc}}', --xgb, '{{inputs.parameters.xgboost-classifier-acc}}']
+      command:
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp)
+        printf "%s" "$0" > "$program_path"
+        python3 -u "$program_path" "$@"
+      - "def show_results(decision_tree, \n                 logistic_regression, \n\
+        \                 svm, \n                 naive_bayes, \n                \
+        \ xgb):\n\n    # Given the outputs from decision_tree, logistic regression,\
+        \ svm, naive_bayes, xgboost components\n    print(f\"Decision tree (accuracy):\
+        \ {decision_tree}\")\n    print(f\"Logistic regression (accuracy): {logistic_regression}\"\
+        )\n    print(f\"SVM (SVC) (accuracy): {svm}\")\n    print(f\"Naive Bayes (Gaussian)\
+        \ (accuracy): {naive_bayes}\")\n    print(f\"XGBoost (accuracy): {xgb}\")\n\
+        \nimport argparse\n_parser = argparse.ArgumentParser(prog='Show results',\
+        \ description='')\n_parser.add_argument(\"--decision-tree\", dest=\"decision_tree\"\
+        , type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+        --logistic-regression\", dest=\"logistic_regression\", type=float, required=True,\
+        \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--svm\", dest=\"svm\"\
+        , type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+        --naive-bayes\", dest=\"naive_bayes\", type=float, required=True, default=argparse.SUPPRESS)\n\
+        _parser.add_argument(\"--xgb\", dest=\"xgb\", type=float, required=True, default=argparse.SUPPRESS)\n\
+        _parsed_args = vars(_parser.parse_args())\n\n_outputs = show_results(**_parsed_args)\n"
+      image: python:3.7
+    inputs:
+      parameters:
+      - {name: decision-tree-classifier-acc}
+      - {name: logistic-regression-classifier-acc}
+      - {name: naive-bayes-classifier-acc}
+      - {name: support-vector-svm-classifier-acc}
+      - {name: xgboost-classifier-acc}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.22
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--decision-tree", {"inputValue": "decision_tree"}, "--logistic-regression",
+          {"inputValue": "logistic_regression"}, "--svm", {"inputValue": "svm"}, "--naive-bayes",
+          {"inputValue": "naive_bayes"}, "--xgb", {"inputValue": "xgb"}], "command":
+          ["sh", "-ec", "program_path=$(mktemp)\nprintf \"%s\" \"$0\" > \"$program_path\"\npython3
+          -u \"$program_path\" \"$@\"\n", "def show_results(decision_tree, \n                 logistic_regression,
+          \n                 svm, \n                 naive_bayes, \n                 xgb):\n\n    #
+          Given the outputs from decision_tree, logistic regression, svm, naive_bayes,
+          xgboost components\n    print(f\"Decision tree (accuracy): {decision_tree}\")\n    print(f\"Logistic
+          regression (accuracy): {logistic_regression}\")\n    print(f\"SVM (SVC)
+          (accuracy): {svm}\")\n    print(f\"Naive Bayes (Gaussian) (accuracy): {naive_bayes}\")\n    print(f\"XGBoost
+          (accuracy): {xgb}\")\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Show
+          results'', description='''')\n_parser.add_argument(\"--decision-tree\",
+          dest=\"decision_tree\", type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--logistic-regression\",
+          dest=\"logistic_regression\", type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--svm\",
+          dest=\"svm\", type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--naive-bayes\",
+          dest=\"naive_bayes\", type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--xgb\",
+          dest=\"xgb\", type=float, required=True, default=argparse.SUPPRESS)\n_parsed_args
+          = vars(_parser.parse_args())\n\n_outputs = show_results(**_parsed_args)\n"],
+          "image": "python:3.7"}}, "inputs": [{"name": "decision_tree", "type": "Float"},
+          {"name": "logistic_regression", "type": "Float"}, {"name": "svm", "type":
+          "Float"}, {"name": "naive_bayes", "type": "Float"}, {"name": "xgb", "type":
+          "Float"}], "name": "Show results"}', pipelines.kubeflow.org/component_ref: '{}',
+        pipelines.kubeflow.org/arguments.parameters: '{"decision_tree": "{{inputs.parameters.decision-tree-classifier-acc}}",
+          "logistic_regression": "{{inputs.parameters.logistic-regression-classifier-acc}}",
+          "naive_bayes": "{{inputs.parameters.naive-bayes-classifier-acc}}", "svm":
+          "{{inputs.parameters.support-vector-svm-classifier-acc}}", "xgb": "{{inputs.parameters.xgboost-classifier-acc}}"}'}
+  - name: support-vector-svm-classifier
+    container:
+      args: []
+      command: [python, svm.py, --data, /tmp/inputs/json_data/data, --acc, /tmp/outputs/acc/data]
+      image: nevret/nevret-kubeflow-tutorial:svm_v2
+    inputs:
+      artifacts:
+      - {name: download-data-function-json_data, path: /tmp/inputs/json_data/data}
+    outputs:
+      parameters:
+      - name: support-vector-svm-classifier-acc
+        valueFrom: {path: /tmp/outputs/acc/data}
+      artifacts:
+      - {name: support-vector-svm-classifier-acc, path: /tmp/outputs/acc/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.22
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Trains
+          a svm classifier", "implementation": {"container": {"command": ["python",
+          "svm.py", "--data", {"inputPath": "json_data"}, "--acc", {"outputPath":
+          "acc"}], "image": "nevret/nevret-kubeflow-tutorial:svm_v2"}}, "inputs":
+          [{"description": "Path where data is stored.", "name": "json_data", "type":
+          "LocalPath"}], "name": "Support Vector (svm) classifier", "outputs": [{"description":
+          "Accuracy metric", "name": "acc", "type": "Float"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "0206aac8cab48fac98d0ca3c1ef3112e3511370f3e31e42e43ecc8ff1be2cde1", "url":
+          "/data/nevret/kubeflow_pipelines/03-ML-model-project/04-svm/svm.yaml"}'}
+  - name: xgboost-classifier
+    container:
+      args: []
+      command: [python, xgb.py, --data, /tmp/inputs/json_data/data, --acc, /tmp/outputs/acc/data]
+      image: nevret/nevret-kubeflow-tutorial:xgb_v3
+    inputs:
+      artifacts:
+      - {name: download-data-function-json_data, path: /tmp/inputs/json_data/data}
+    outputs:
+      parameters:
+      - name: xgboost-classifier-acc
+        valueFrom: {path: /tmp/outputs/acc/data}
+      artifacts:
+      - {name: xgboost-classifier-acc, path: /tmp/outputs/acc/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.22
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Trains
+          an xgboost classifier", "implementation": {"container": {"command": ["python",
+          "xgb.py", "--data", {"inputPath": "json_data"}, "--acc", {"outputPath":
+          "acc"}], "image": "nevret/nevret-kubeflow-tutorial:xgb_v3"}}, "inputs":
+          [{"description": "Path where data is stored.", "name": "json_data", "type":
+          "LocalPath"}], "name": "XGBoost classifier", "outputs": [{"description":
+          "Accuracy metric", "name": "acc", "type": "Float"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "905844f1e3ac1f9ad154cba20236f6a0ce45a237fd843aafb0e4020a9c638149", "url":
+          "/data/nevret/kubeflow_pipelines/03-ML-model-project/06-xgb/xgb.yaml"}'}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner

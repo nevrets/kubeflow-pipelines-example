@@ -1,0 +1,20 @@
+name: XGBoost classifier
+description: Trains an xgboost classifier
+
+inputs:
+- {name: json_data, type: LocalPath, description: 'Path where data is stored.'}
+outputs:
+- {name: acc, type: Float, description: 'Accuracy metric'}
+
+implementation:
+  container:
+    image: nevret/nevret-kubeflow-tutorial:xgb_v3
+    command: [
+      python, xgb.py,
+
+      --data,
+      {inputPath: json_data},
+
+      --acc,
+      {outputPath: acc},    
+    ]

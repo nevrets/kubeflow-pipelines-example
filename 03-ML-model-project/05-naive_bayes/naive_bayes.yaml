@@ -1,0 +1,20 @@
+name: Naive Bayes classifier
+description: Trains a Naive Bayes classifier
+
+inputs:
+- {name: json_data, type: LocalPath, description: 'Path where data is stored.'}
+outputs:
+- {name: acc, type: Float, description: 'Accuracy metric'}
+
+implementation:
+  container:
+    image: nevret/nevret-kubeflow-tutorial:naive_bayes_v2
+    command: [
+      python, naive_bayes.py,
+
+      --data,
+      {inputPath: json_data},
+
+      --acc,
+      {outputPath: acc},
+    ]
